@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Donate an Object - CivicLink</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<header class="dashboard-header">
+    <div class="header-left">CivicLink</div>
+    <div class="header-center">Donate an Object</div>
+    <div class="header-right">
+        <a href="user-dashboard.html" class="logout-btn">Back</a>
+    </div>
+</header>
+
+<div class="form-container">
+    <h2>Donate an Object</h2>
+
+    <form class="donation-form" id="donateForm" enctype="multipart/form-data">
+
+        <label>Description</label>
+        <textarea id="description" required></textarea>
+
+        <label>Category</label>
+        <select id="category" required onchange="toggleOtherCategory()">
+            <option value="">Select Category</option>
+            <option value="Education">Education</option>
+            <option value="Food">Food</option>
+            <option value="Clothing">Clothing</option>
+            <option value="Healthcare">Healthcare</option>
+            <option value="Disaster Relief">Disaster Relief</option>
+            <option value="Community Development">Community Development</option>
+            <option value="Other">Other</option>
+        </select>
+
+        <!-- OTHER CATEGORY INPUT -->
+        <input
+            type="text"
+            id="otherCategory"
+            placeholder="Please specify donation category"
+            style="display:none; margin-top:10px;"
+        />
+
+        <label>Upload Image (optional)</label>
+        <input type="file" id="image" accept="image/*">
+
+        <div class="status-tag open">Status: OPEN</div>
+        <button type="submit" class="submit-btn">Submit Donation</button>
+    </form>
+</div>
+
+<script>
+/* ================= TOGGLE OTHER CATEGORY ================= */
+function toggleOtherCategory() {
+    const category = document.getElementById("category").value;
+    const otherInput = document.getElementById("otherCategory");
+
+    if (category === "Other") {
+        otherInput.style.display = "block";
+        otherInput.required = true;
+    } else {
+        otherInput.style.display = "none";
+        otherInput.required = false;
+        otherInput.value = "";
+    }
+}
+
+/* ================= SUBMIT DONATION ================= */
+document.getElementById("donateForm").addEventListener("submit", async function (e) {
+    e.preventDefault();
+
+    const userId = localStorage.getItem("user_id");
+    if (!userId) {
+        alert("Please login again");
+        return;
+    }
+
+    let category = document.getElementById("category").value;
+    const otherCategory = document.getElementById("otherCategory").value.trim();
+    const description = document.getElementById("description").value.trim();
+    const image = document.querySelector('input[type="file"]').files[0];
+
+    if (category === "Other") {
+        if (!otherCategory) {
+            alert("Please specify the donation category");
+            return;
+        }
+        category = `Other - ${otherCategory}`;
+    }
+
+    /* AI Verify */
+    const verifyRes = await fetch("http://localhost:5000/verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+            type: "DONATION",
+            category,
+            description
+        })
+    });
+
+    const verify = await verifyRes.json();
+    if (!verify.verified) {
+        alert("❌ " + verify.reason);
+        return;
+    }
+
+    /* FORM DATA */
+    const formData = new FormData();
+    formData.append("user_id", userId);
+    formData.append("type", "DONATION");
+    formData.append("category", category);
+    formData.append("description", description);
+    formData.append("location", "Coimbatore");
+    if (image) formData.append("image", image);
+
+    await fetch("http://localhost:3000/api/contributions/add", {
+        method: "POST",
+        body: formData
+    });
+
+    alert("✅ Donation submitted successfully!");
+    window.location.href = "my-open-contributions.html";
+});
+</script>
+
+</body>
+</html>

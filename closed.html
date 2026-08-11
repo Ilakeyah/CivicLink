@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Closed Contributions - CivicLink</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<header class="dashboard-header">
+    <div class="header-left">CivicLink</div>
+    <div class="header-center">Closed Contributions</div>
+    <div class="header-right">
+        <a href="user-dashboard.html" class="logout-btn">Back</a>
+    </div>
+</header>
+
+<div class="ngo-container">
+
+    <div id="closedContributions"></div>
+
+    <div class="empty-state" id="emptyState" style="display:none;">
+        <p>You have no closed contributions.</p>
+    </div>
+
+</div>
+
+<script>
+const userId = localStorage.getItem("user_id");
+const container = document.getElementById("closedContributions");
+const emptyState = document.getElementById("emptyState");
+
+if (!userId) {
+    alert("Please login again");
+    window.location.href = "login.html";
+}
+
+/* Load Closed Contributions */
+fetch(`http://localhost:3000/api/contributions/user/${userId}`)
+    .then(res => res.json())
+    .then(data => {
+
+        const closedData = data.filter(item => item.status === "CLOSED");
+
+        if (closedData.length === 0) {
+            emptyState.style.display = "block";
+            return;
+        }
+
+        closedData.forEach(item => {
+            const card = document.createElement("div");
+            card.className = "ngo-card";
+
+            card.innerHTML = `
+                <h3>
+                    ${item.type === "DONATION" ? "Donation" : "Service"}
+                    (ID: ${item.contribution_id})
+                </h3>
+                <p><strong>Category:</strong> ${item.category}</p>
+                <p><strong>Description:</strong> ${item.description}</p>
+                <p><strong>Status:</strong> ${item.status}</p>
+            `;
+
+            container.appendChild(card);
+        });
+    })
+    .catch(() => {
+        emptyState.style.display = "block";
+    });
+</script>
+
+</body>
+</html>

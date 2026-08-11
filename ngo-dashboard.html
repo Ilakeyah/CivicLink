@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>NGO Dashboard - CivicLink</title>
+    <link rel="stylesheet" href="css/style.css">
+
+    <style>
+        .ngo-container {
+            padding: 30px;
+        }
+
+        h2 {
+            margin: 36px 0 18px;
+            font-size: 26px;
+            color: #1f3c88;
+        }
+
+        /* ===== SLIDER ===== */
+        .slider-wrapper {
+            width: 100%;
+            overflow: hidden;
+            margin-bottom: 60px;
+        }
+
+        .slider-track {
+            display: flex;
+            gap: 24px;
+            transition: transform 0.6s ease-in-out;
+        }
+
+        .slider-card {
+            width: 320px;
+            flex-shrink: 0;
+        }
+
+        /* ===== FILTERS ===== */
+        .filter-box {
+            display: flex;
+            gap: 18px;
+            flex-wrap: wrap;
+            margin-bottom: 30px;
+        }
+
+        .filter-box select,
+        .filter-box input {
+            padding: 10px 12px;
+            min-width: 200px;
+            border-radius: 6px;
+            border: 1px solid #ccc;
+        }
+
+        /* ===== STATIC GRID ===== */
+        .static-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 26px;
+        }
+
+        /* ===== CARD ===== */
+        .card {
+            background: #fff;
+            padding: 16px;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+        }
+
+        .card h3 {
+            margin-bottom: 6px;
+            color: #1f3c88;
+        }
+
+        .card img {
+            width: 100%;
+            height: 180px;
+            object-fit: contain;
+            background: #f4f6fa;
+            border-radius: 8px;
+            margin-top: 10px;
+        }
+
+        .empty-state {
+            margin-top: 40px;
+            text-align: center;
+            font-size: 18px;
+        }
+
+        .email-link {
+            color: #1f3c88;
+            font-weight: 500;
+            text-decoration: none;
+        }
+
+        .email-link:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+
+<body>
+
+<header class="dashboard-header">
+    <div class="header-left">CivicLink</div>
+    <div class="header-center">NGO Dashboard</div>
+    <div class="header-right">
+        <a href="index.html" class="logout-btn">Logout</a>
+    </div>
+</header>
+
+<div class="ngo-container">
+
+    <h2>Featured Open Contributions</h2>
+
+    <div class="slider-wrapper">
+        <div class="slider-track" id="sliderTrack"></div>
+    </div>
+
+    <h2>Browse Open Contributions</h2>
+
+    <div class="filter-box">
+        <select id="categoryFilter">
+            <option value="">All Categories</option>
+        </select>
+
+        <select id="locationFilter">
+            <option value="">All Locations</option>
+        </select>
+
+        <select id="typeFilter">
+            <option value="">All Types</option>
+            <option value="DONATION">Donation</option>
+            <option value="SERVICE">Service</option>
+        </select>
+
+        <input type="text" id="searchInput" placeholder="Search description..." />
+    </div>
+
+    <div class="static-grid" id="staticContainer"></div>
+
+    <div id="emptyState" class="empty-state" style="display:none;">
+        <p>No open contributions found.</p>
+    </div>
+
+</div>
+
+<script>
+const sliderTrack = document.getElementById("sliderTrack");
+const staticContainer = document.getElementById("staticContainer");
+const emptyState = document.getElementById("emptyState");
+
+const categoryFilter = document.getElementById("categoryFilter");
+const locationFilter = document.getElementById("locationFilter");
+const typeFilter = document.getElementById("typeFilter");
+const searchInput = document.getElementById("searchInput");
+
+/* IMAGE PATHS */
+const PLACEHOLDER_IMG = "http://localhost:3000/images/no-photo.png";
+const UPLOAD_BASE = "http://localhost:3000";
+
+/* SERVICE SPECIALIZATIONS + OTHER */
+const SERVICE_CATEGORIES = [
+    "Education",
+    "Healthcare",
+    "Counselling",
+    "Skill Training",
+    "Other"
+];
+
+let allContributions = [];
+let slideIndex = 0;
+let sliderInterval;
+
+/* ===== LOAD FILTER DATA ===== */
+async function loadFilters() {
+    const [catRes, locRes] = await Promise.all([
+        fetch("http://localhost:3000/api/contributions/categories"),
+        fetch("http://localhost:3000/api/contributions/all-locations")
+    ]);
+
+    const dbCategories = await catRes.json();
+    const locations = await locRes.json();
+
+    const categorySet = new Set();
+
+    dbCategories.forEach(c => {
+        if (c && c.trim()) categorySet.add(c.trim());
+    });
+
+    SERVICE_CATEGORIES.forEach(c => categorySet.add(c));
+
+    categorySet.forEach(c => {
+        const opt = document.createElement("option");
+        opt.value = c.toLowerCase();
+        opt.textContent = c;
+        categoryFilter.appendChild(opt);
+    });
+
+    locations.forEach(l => {
+        const opt = document.createElement("option");
+        opt.value = l.trim().toLowerCase();   // normalize once
+        opt.textContent = l;
+        locationFilter.appendChild(opt);
+    });
+}
+
+/* ===== LOAD CONTRIBUTIONS ===== */
+async function loadContributions() {
+    const res = await fetch("http://localhost:3000/api/contributions/open");
+    allContributions = await res.json();
+
+    buildSlider();
+    applyFilters();
+}
+
+/* ===== EMAIL RENDER ===== */
+function renderEmail(email) {
+    if (!email) return `<span style="color:#888">Not available</span>`;
+
+    const subject = encodeURIComponent("CivicLink Contribution Interest");
+
+    return `
+        <a class="email-link"
+           href="https://mail.google.com/mail/?view=cm&fs=1&to=${email}&su=${subject}"
+           target="_blank">
+           ${email}
+        </a>
+    `;
+}
+
+/* ===== BUILD SLIDER ===== */
+function buildSlider() {
+    sliderTrack.innerHTML = "";
+    slideIndex = 0;
+
+    if (allContributions.length === 0) return;
+
+    allContributions.forEach(c => {
+        const card = document.createElement("div");
+        card.className = "slider-card card";
+
+        const imgSrc = c.image_path
+            ? `${UPLOAD_BASE}${c.image_path}`
+            : PLACEHOLDER_IMG;
+
+        const locationText =
+            (c.user_location || c.location || "").trim();
+
+        card.innerHTML = `
+            <h3>${c.type}: ${c.category}</h3>
+            <p><strong>Location:</strong> ${locationText || "Not specified"}</p>
+            <p><strong>User Email:</strong> ${renderEmail(c.user_email)}</p>
+            <img src="${imgSrc}">
+        `;
+
+        sliderTrack.appendChild(card);
+    });
+
+    startAutoSlide();
+}
+
+/* ===== AUTO SLIDE ===== */
+function startAutoSlide() {
+    clearInterval(sliderInterval);
+    const cardWidth = 344;
+
+    sliderInterval = setInterval(() => {
+        slideIndex = (slideIndex + 1) % sliderTrack.children.length;
+        sliderTrack.style.transform =
+            `translateX(-${slideIndex * cardWidth}px)`;
+    }, 3500);
+}
+
+/* ===== APPLY FILTERS (FIXED) ===== */
+function applyFilters() {
+    staticContainer.innerHTML = "";
+    emptyState.style.display = "none";
+
+    const category = categoryFilter.value;
+    const location = locationFilter.value;
+    const type = typeFilter.value;
+    const search = searchInput.value.toLowerCase();
+
+    const filtered = allContributions.filter(c => {
+        const itemCategory = c.category?.toLowerCase() || "";
+        const itemLocation =
+            (c.user_location || c.location || "").trim().toLowerCase();
+        const itemDesc = c.description?.toLowerCase() || "";
+
+        return (
+            (!category || itemCategory.includes(category)) &&
+            (!location || itemLocation === location) &&
+            (!type || c.type === type) &&
+            (!search || itemDesc.includes(search))
+        );
+    });
+
+    if (filtered.length === 0) {
+        emptyState.style.display = "block";
+        return;
+    }
+
+    filtered.forEach(c => {
+        const card = document.createElement("div");
+        card.className = "card";
+
+        const imgSrc = c.image_path
+            ? `${UPLOAD_BASE}${c.image_path}`
+            : PLACEHOLDER_IMG;
+
+        const locationText =
+            (c.user_location || c.location || "").trim();
+
+        card.innerHTML = `
+            <h3>${c.type}: ${c.category}</h3>
+            <p><strong>Location:</strong> ${locationText || "Not specified"}</p>
+            <p>${c.description}</p>
+            <p><strong>User Email:</strong> ${renderEmail(c.user_email)}</p>
+            <img src="${imgSrc}">
+        `;
+
+        staticContainer.appendChild(card);
+    });
+}
+
+/* EVENTS */
+categoryFilter.addEventListener("change", applyFilters);
+locationFilter.addEventListener("change", applyFilters);
+typeFilter.addEventListener("change", applyFilters);
+searchInput.addEventListener("input", applyFilters);
+
+/* INIT */
+loadFilters();
+loadContributions();
+</script>
+
+</body>
+</html>

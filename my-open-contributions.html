@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>My Open Contributions - CivicLink</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<header class="dashboard-header">
+    <div class="header-left">CivicLink</div>
+    <div class="header-center">My Open Contributions</div>
+    <div class="header-right">
+        <a href="user-dashboard.html" class="logout-btn">Back</a>
+    </div>
+</header>
+
+<div class="ngo-container">
+
+    <!-- 🔽 TYPE FILTER -->
+    <div class="filter-box" style="text-align:center; margin-bottom:30px;">
+        <select id="typeFilter" style="padding:10px 14px; border-radius:6px;">
+            <option value="">All Types</option>
+            <option value="DONATION">Donation</option>
+            <option value="SERVICE">Service</option>
+        </select>
+    </div>
+
+    <div id="openContributions"></div>
+
+    <div class="empty-state" id="emptyState" style="display:none;">
+        <p>You have no open contributions.</p>
+    </div>
+
+</div>
+
+<script>
+const userId = localStorage.getItem("user_id");
+const user = JSON.parse(localStorage.getItem("user"));
+const container = document.getElementById("openContributions");
+const emptyState = document.getElementById("emptyState");
+const typeFilter = document.getElementById("typeFilter");
+
+let openContributions = [];
+
+if (!userId || !user) {
+    alert("Please login again");
+    window.location.href = "login.html";
+}
+
+/* ================= LOAD OPEN CONTRIBUTIONS ================= */
+fetch(`http://localhost:3000/api/contributions/user/${userId}`)
+    .then(res => res.json())
+    .then(data => {
+        openContributions = data.filter(item => item.status === "OPEN");
+
+        if (openContributions.length === 0) {
+            emptyState.style.display = "block";
+            return;
+        }
+
+        renderContributions(openContributions);
+    })
+    .catch(() => {
+        emptyState.style.display = "block";
+    });
+
+/* ================= RENDER CONTRIBUTIONS ================= */
+function renderContributions(list) {
+    container.innerHTML = "";
+    emptyState.style.display = "none";
+
+    if (list.length === 0) {
+        emptyState.style.display = "block";
+        return;
+    }
+
+    list.forEach(item => {
+        const card = document.createElement("div");
+        card.className = "ngo-card";
+
+        card.innerHTML = `
+            <h3>
+                ${item.type === "DONATION" ? "Donation" : "Service"}
+                (ID: ${item.contribution_id})
+            </h3>
+
+            <p><strong>Category:</strong> ${item.category}</p>
+            <p><strong>Description:</strong> ${item.description}</p>
+
+            ${item.image_path ? `
+                <img
+                    src="http://localhost:3000${item.image_path}"
+                    alt="Contribution Image"
+                    style="max-width:220px;margin:12px 0;border-radius:8px;"
+                />
+            ` : ""}
+
+            <p><strong>Status:</strong> ${item.status}</p>
+
+            <button class="card-btn"
+                onclick="closeContribution(${item.contribution_id})">
+                Close Contribution
+            </button>
+
+            <button class="secondary-btn"
+                onclick="loadSuggestedNGOs(this, '${item.category}', \`${item.description}\`)">
+                View Suggested NGOs
+            </button>
+
+            <div class="suggested-ngos" style="display:none;">
+                <h4>AI-Suggested NGOs</h4>
+                <div class="ngo-results">
+                    <p>Loading recommendations...</p>
+                </div>
+
+                <div class="ngo-disclaimer">
+                    <strong>Disclaimer:</strong><br>
+                    CivicLink provides AI-assisted NGO recommendations.
+                    Users must independently verify NGO credentials.
+                </div>
+            </div>
+        `;
+
+        container.appendChild(card);
+    });
+}
+
+/* ================= FILTER BY TYPE ================= */
+typeFilter.addEventListener("change", () => {
+    const type = typeFilter.value;
+
+    const filtered = !type
+        ? openContributions
+        : openContributions.filter(c => c.type === type);
+
+    renderContributions(filtered);
+});
+
+/* ================= LOAD AI-SUGGESTED NGOs ================= */
+function loadSuggestedNGOs(button, category, description) {
+    const section = button.nextElementSibling;
+    const resultsDiv = section.querySelector(".ngo-results");
+
+    if (section.style.display === "block") {
+        section.style.display = "none";
+        return;
+    }
+
+    section.style.display = "block";
+    resultsDiv.innerHTML = "<p>Loading AI-suggested NGOs...</p>";
+
+    fetch("http://localhost:3000/api/ngos/recommend", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+            category,
+            description,
+            location: user.location
+        })
+    })
+    .then(res => res.json())
+    .then(ngos => {
+        resultsDiv.innerHTML = "";
+
+        if (!ngos || ngos.length === 0) {
+            resultsDiv.innerHTML = "<p>No matching NGOs found.</p>";
+            return;
+        }
+
+        ngos.forEach(ngo => {
+            resultsDiv.innerHTML += `
+                <div class="ngo-suggestion">
+                    <div>
+                        <strong>${ngo.ngo_name}</strong>
+                        <p>Specialization: ${ngo.specializations}</p>
+                        <p>Location: ${ngo.location}</p>
+                        <ul>
+                            ${ngo.reasons.map(r => `<li>${r}</li>`).join("")}
+                        </ul>
+                    </div>
+
+                    <div class="ngo-meta">
+                        <span class="match-score">
+                            Match: ${ngo.match_score}%
+                        </span>
+                        <p class="ngo-email">
+                            <a href="https://mail.google.com/mail/?view=cm&fs=1&to=${ngo.email}&su=${encodeURIComponent("CivicLink Contribution Interest")}"
+                               target="_blank">
+                                ${ngo.email}
+                            </a>
+                        </p>
+                    </div>
+                </div>
+            `;
+        });
+    })
+    .catch(() => {
+        resultsDiv.innerHTML = "<p>ML service unavailable.</p>";
+    });
+}
+
+/* ================= CLOSE CONTRIBUTION ================= */
+function closeContribution(contributionId) {
+    if (!confirm("Are you sure you want to close this contribution?")) return;
+
+    fetch(`http://localhost:3000/api/contributions/close/${contributionId}`, {
+        method: "PUT"
+    })
+    .then(res => res.json())
+    .then(data => {
+        alert(data.message);
+        location.reload();
+    })
+    .catch(() => {
+        alert("Failed to close contribution");
+    });
+}
+</script>
+
+</body>
+</html>

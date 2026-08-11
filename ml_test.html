@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>ML Test</title>
+</head>
+<body>
+
+<h2>Test ML Recommendation</h2>
+<button onclick="testML()">Run Test</button>
+
+<pre id="output"></pre>
+
+<script>
+function testML() {
+    fetch("http://localhost:5000/recommend", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+            category: "Clothing",
+            description: "I want to donate clothes to families affected by floods",
+            location: "Coimbatore"
+        })
+    })
+    .then(res => res.json())
+    .then(data => {
+        document.getElementById("output").textContent =
+            JSON.stringify(data, null, 2);
+    })
+    .catch(err => {
+        document.getElementById("output").textContent =
+            "Error: " + err;
+    });
+}
+</script>
+
+</body>
+</html>

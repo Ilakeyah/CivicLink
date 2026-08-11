@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Signup - CivicLink</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<h2>Create Account</h2>
+
+<form class="auth-form" id="signupForm">
+
+    <!-- Role Selection -->
+    <label><strong>Register As</strong></label>
+    <select id="role" required>
+        <option value="">Select Role</option>
+        <option value="user">User</option>
+        <option value="ngo">NGO</option>
+    </select>
+
+    <input type="text" id="name" placeholder="Full Name / NGO Name" required>
+    <input type="email" id="email" placeholder="Email" required>
+    <input type="password" id="password" placeholder="Password" required>
+    <input type="text" id="location" placeholder="Location" required>
+
+    <!-- NGO Specialization Section -->
+    <div class="ngo-specialization" id="ngoSection" style="display:none;">
+        <p class="section-title">NGO Specialization (Select one or more)</p>
+
+        <div class="checkbox-row">
+            <input type="checkbox" value="Education">
+            <label>Education</label>
+        </div>
+
+        <div class="checkbox-row">
+            <input type="checkbox" value="Food">
+            <label>Food & Nutrition</label>
+        </div>
+
+        <div class="checkbox-row">
+            <input type="checkbox" value="Healthcare">
+            <label>Healthcare</label>
+        </div>
+
+        <div class="checkbox-row">
+            <input type="checkbox" value="Clothing">
+            <label>Clothing</label>
+        </div>
+
+        <div class="checkbox-row">
+            <input type="checkbox" value="Disaster Relief">
+            <label>Disaster Relief</label>
+        </div>
+
+        <div class="checkbox-row">
+            <input type="checkbox" value="Community Development">
+            <label>Community Development</label>
+        </div>
+
+        <!-- ✅ OTHER OPTION -->
+        <div class="checkbox-row">
+            <input type="checkbox" id="otherSpecCheckbox" value="Other">
+            <label>Other</label>
+        </div>
+
+        <!-- ✅ OTHER INPUT -->
+        <input
+            type="text"
+            id="otherSpecInput"
+            placeholder="Please specify NGO specialization"
+            style="display:none; margin-top:10px;"
+        />
+    </div>
+
+    <button type="submit">Sign Up</button>
+</form>
+
+<script>
+const roleSelect = document.getElementById("role");
+const ngoSection = document.getElementById("ngoSection");
+const otherCheckbox = document.getElementById("otherSpecCheckbox");
+const otherInput = document.getElementById("otherSpecInput");
+
+roleSelect.addEventListener("change", () => {
+    ngoSection.style.display = roleSelect.value === "ngo" ? "block" : "none";
+});
+
+// Show / hide "Other" input
+otherCheckbox.addEventListener("change", () => {
+    otherInput.style.display = otherCheckbox.checked ? "block" : "none";
+    if (!otherCheckbox.checked) otherInput.value = "";
+});
+
+document.getElementById("signupForm").addEventListener("submit", function(e) {
+    e.preventDefault();
+
+    const role = roleSelect.value;
+    const name = document.getElementById("name").value.trim();
+    const email = document.getElementById("email").value.trim();
+    const password = document.getElementById("password").value;
+    const location = document.getElementById("location").value.trim();
+
+    if (role === "user") {
+        fetch("http://localhost:3000/api/users/signup", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ name, email, password, location })
+        })
+        .then(res => res.json())
+        .then(data => {
+            alert(data.message);
+            window.location.href = "login.html";
+        });
+
+    } else if (role === "ngo") {
+
+        const checked = document.querySelectorAll(".ngo-specialization input[type='checkbox']:checked");
+        if (checked.length === 0) {
+            alert("Please select at least one specialization");
+            return;
+        }
+
+        let specializations = [];
+
+        checked.forEach(cb => {
+            if (cb.value === "Other") {
+                const otherValue = otherInput.value.trim();
+                if (!otherValue) {
+                    alert("Please specify the NGO specialization for 'Other'");
+                    return;
+                }
+                specializations.push(`Other - ${otherValue}`);
+            } else {
+                specializations.push(cb.value);
+            }
+        });
+
+        fetch("http://localhost:3000/api/ngos/signup", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                ngo_name: name,
+                email,
+                password,
+                location,
+                specializations: specializations.join(",")
+            })
+        })
+        .then(res => res.json())
+        .then(data => {
+            alert(data.message);
+            window.location.href = "login.html";
+        });
+
+    } else {
+        alert("Please select a role");
+    }
+});
+</script>
+
+</body>
+</html>

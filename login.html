@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Login - CivicLink</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<h2>Login</h2>
+
+<form class="auth-form" id="loginForm">
+
+    <!-- Role Selection -->
+    <label><strong>Login As</strong></label>
+    <select id="role" required>
+        <option value="">Select Role</option>
+        <option value="user">User</option>
+        <option value="ngo">NGO</option>
+    </select>
+
+    <input type="email" id="email" placeholder="Email" required>
+    <input type="password" id="password" placeholder="Password" required>
+    <button type="submit">Login</button>
+</form>
+
+<p>
+    New here?
+    <a href="signup.html">Create an account</a>
+</p>
+
+<script>
+document.getElementById("loginForm").addEventListener("submit", function(e) {
+    e.preventDefault();
+
+    const role = document.getElementById("role").value;
+    const email = document.getElementById("email").value;
+    const password = document.getElementById("password").value;
+
+    if (!role) {
+        alert("Please select a role");
+        return;
+    }
+
+    const url =
+        role === "user"
+        ? "http://localhost:3000/api/users/login"
+        : "http://localhost:3000/api/ngos/login";
+
+    fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password })
+    })
+    .then(res => res.json())
+    .then(data => {
+        console.log("LOGIN RESPONSE:", data);
+
+        if (data.message === "Login successful") {
+
+            if (role === "user" && data.user) {
+                // ✅ STORE FULL USER OBJECT
+                localStorage.setItem("user", JSON.stringify(data.user));
+                localStorage.setItem("user_id", data.user.user_id);
+                localStorage.setItem("role", "user");
+
+                console.log("Saved user:", data.user);
+                window.location.href = "user-dashboard.html";
+
+            } else if (role === "ngo" && data.ngo) {
+    localStorage.setItem("ngo_id", data.ngo.ngo_id);
+    localStorage.setItem("ngo", JSON.stringify(data.ngo)); // ✅ FIX
+    localStorage.setItem("role", "ngo");
+    window.location.href = "ngo-dashboard.html";
+}
+ else {
+                alert("Login response mismatch. Check console.");
+            }
+
+        } else {
+            alert("Invalid login credentials");
+        }
+    })
+    .catch(() => alert("Login failed"));
+});
+</script>
+
+</body>
+</html>

@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>CivicLink API Test</title>
+</head>
+<body>
+
+<h2>User Signup Test</h2>
+<button onclick="userSignup()">Test User Signup</button>
+<pre id="signupResult"></pre>
+
+<h2>User Login Test</h2>
+<button onclick="userLogin()">Test User Login</button>
+<pre id="loginResult"></pre>
+
+<hr>
+
+<h2>NGO Signup Test</h2>
+<button onclick="ngoSignup()">Test NGO Signup</button>
+<pre id="ngoSignupResult"></pre>
+
+<h2>NGO Login Test</h2>
+<button onclick="ngoLogin()">Test NGO Login</button>
+<pre id="ngoLoginResult"></pre>
+
+<script>
+function userSignup() {
+    fetch("http://localhost:3000/api/users/signup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+            name: "Browser User",
+            email: "browseruser@gmail.com",
+            password: "1234",
+            location: "Coimbatore"
+        })
+    })
+    .then(res => res.json())
+    .then(data => {
+        document.getElementById("signupResult").textContent =
+            JSON.stringify(data, null, 2);
+    });
+}
+
+function userLogin() {
+    fetch("http://localhost:3000/api/users/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+            email: "browseruser@gmail.com",
+            password: "1234"
+        })
+    })
+    .then(res => res.json())
+    .then(data => {
+        document.getElementById("loginResult").textContent =
+            JSON.stringify(data, null, 2);
+    });
+}
+
+function ngoSignup() {
+    fetch("http://localhost:3000/api/ngos/signup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+            ngo_name: "Helping Hands NGO",
+            email: "helpinghands@gmail.com",
+            password: "1234",
+            location: "Chennai",
+            specializations: "Education,Food"
+        })
+    })
+    .then(res => res.json())
+    .then(data => {
+        document.getElementById("ngoSignupResult").textContent =
+            JSON.stringify(data, null, 2);
+    });
+}
+
+function ngoLogin() {
+    fetch("http://localhost:3000/api/ngos/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+            email: "helpinghands@gmail.com",
+            password: "1234"
+        })
+    })
+    .then(res => res.json())
+    .then(data => {
+        document.getElementById("ngoLoginResult").textContent =
+            JSON.stringify(data, null, 2);
+    });
+}
+</script>
+
+</body>
+</html>

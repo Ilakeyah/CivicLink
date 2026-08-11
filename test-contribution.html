@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html>
+<body>
+
+<h2>Add Contribution Test</h2>
+<button onclick="addDonation()">Add Donation</button>
+<pre id="result"></pre>
+
+<script>
+function addDonation() {
+    fetch("http://localhost:3000/api/contributions/add", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+            user_id: 1,
+            type: "DONATION",
+            category: "Books",
+            description: "10 books for donation",
+            location: "Coimbatore"
+        })
+    })
+    .then(res => res.json())
+    .then(data => {
+        document.getElementById("result").textContent =
+            JSON.stringify(data, null, 2);
+    });
+}
+</script>
+
+</body>
+</html>
